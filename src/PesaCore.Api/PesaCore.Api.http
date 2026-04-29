@@ -1,0 +1,27 @@
+@PesaCore.Api_HostAddress = http://localhost:5235
+
+### Create Account
+POST {{PesaCore.Api_HostAddress}}/accounts
+Content-Type: application/json
+
+{
+    "accountNumber": "NEWACC001",
+    "holderName": "New Customer",
+    "balance": 5000.00
+}
+
+### Get All Accounts (No Includes - N+1 demonstration)
+GET {{PesaCore.Api_HostAddress}}/accounts?include=none
+Accept: application/json
+
+### Get All Accounts (With Include - transactions included)
+GET {{PesaCore.Api_HostAddress}}/accounts?include=transactions
+Accept: application/json
+
+### Get All Accounts (With Select - only IDs and AccountNumbers)
+GET {{PesaCore.Api_HostAddress}}/accounts?include=select
+Accept: application/json
+
+### Get Account with Specific Includes (using query parameters)
+GET {{PesaCore.Api_HostAddress}}/accounts/1?include=transactions&include=select
+Accept: application/json

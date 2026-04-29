@@ -1,0 +1,32 @@
+# .NET build artefacts
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Pp]ublish/
+artifacts/
+*.user
+*.userosscache
+*.suo
+.vs/
+*.swp
+
+# Local dev
+*.log
+*.cache
+appsettings.*.local.json
+
+# Test coverage
+coverage*.json
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
