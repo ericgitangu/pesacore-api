@@ -1,0 +1,155 @@
+# PesaCore.Api — Release on Tag
+#
+# Triggers on a v*.*.* tag. Builds both deploy targets (IIS on-prem,
+# Linux for App Service) from the same commit and publishes a GitHub Release.
+# "Build once, deploy many" — the same artifact promotes through environments.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g., 1.0.0). Don't include the 'v' prefix."
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+
+jobs:
+  build-iis:
+    name: Build IIS artifact (win-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+      - name: Publish (IIS)
+        run: |
+          dotnet publish src/PesaCore.Api/PesaCore.Api.csproj \
+            --configuration Release \
+            -p:PublishProfile=IISProfile \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            --output ./publish/iis
+      - name: Bundle IIS artifact
+        run: cd publish && zip -r ../pesacore-api-iis-${{ steps.version.outputs.VERSION }}.zip iis/
+      - name: Upload IIS bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pesacore-api-iis-${{ steps.version.outputs.VERSION }}
+          path: pesacore-api-iis-${{ steps.version.outputs.VERSION }}.zip
+          retention-days: 90
+
+  build-azure:
+    name: Build Azure artifact (linux-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+      - name: Publish (Linux, framework-dependent)
+        run: |
+          dotnet publish src/PesaCore.Api/PesaCore.Api.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained false \
+            -p:Version=${{ steps.version.outputs.VERSION }} \
+            --output ./publish/linux
+      - name: Bundle Linux artifact
+        run: cd publish && zip -r ../pesacore-api-linux-${{ steps.version.outputs.VERSION }}.zip linux/
+      - name: Upload Linux bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pesacore-api-linux-${{ steps.version.outputs.VERSION }}
+          path: pesacore-api-linux-${{ steps.version.outputs.VERSION }}.zip
+          retention-days: 90
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-iis, build-azure]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Resolve version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Download IIS bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: pesacore-api-iis-${{ steps.version.outputs.VERSION }}
+      - name: Download Linux bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: pesacore-api-linux-${{ steps.version.outputs.VERSION }}
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
+          fi
+          {
+            echo "NOTES<<EOF"
+            echo "## What changed"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "## Artifacts"
+            echo ""
+            echo "- **IIS / Windows Server:** \`pesacore-api-iis-${{ steps.version.outputs.VERSION }}.zip\` — extract to \`%SystemDrive%\\inetpub\\wwwroot\\pesacore-api\\\`"
+            echo "- **Azure App Service / Linux:** \`pesacore-api-linux-${{ steps.version.outputs.VERSION }}.zip\` — \`az webapp deploy --src-path\`"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PesaCore.Api ${{ steps.version.outputs.VERSION }}
+          body: ${{ steps.notes.outputs.NOTES }}
+          files: |
+            pesacore-api-iis-${{ steps.version.outputs.VERSION }}.zip
+            pesacore-api-linux-${{ steps.version.outputs.VERSION }}.zip
+          draft: false
+          prerelease: false

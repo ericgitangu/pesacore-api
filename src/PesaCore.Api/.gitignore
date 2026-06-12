@@ -194,6 +194,9 @@ publish/
 # Note: Comment the next line if you want to checkin your web deploy settings,
 # but database connection strings (with potential passwords) will be unencrypted
 *.pubxml
+# Paved-road IIS publish profile is intentionally tracked (no secrets — it's a
+# FileSystem profile; the CI publish step consumes it via -p:PublishProfile=IISProfile).
+!Properties/PublishProfiles/IISProfile.pubxml
 *.publishproj
 
 # Microsoft Azure Web App publish settings. Comment the next line if you want to
