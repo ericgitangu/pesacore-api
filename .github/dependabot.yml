@@ -1,0 +1,71 @@
+# PesaCore.Api — Dependabot Configuration
+#
+# Automated dependency updates for SAST/SCA hygiene — out-of-date packages
+# with known CVEs are a security finding. Ships with the paved-road template
+# so every adopting team gets weekly dependency hygiene for free.
+
+version: 2
+
+updates:
+  # NuGet — group minor/patch to reduce noise; majors ship as individual PRs.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+          - "Microsoft.AspNetCore.*"
+        update-types: ["minor", "patch"]
+      ef-core:
+        patterns:
+          - "Microsoft.EntityFrameworkCore.*"
+        update-types: ["minor", "patch"]
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry.*"
+        update-types: ["minor", "patch"]
+      test-deps:
+        patterns:
+          - "xunit*"
+          - "Moq"
+          - "FluentAssertions"
+          - "coverlet.*"
+          - "Microsoft.NET.Test.Sdk"
+        update-types: ["minor", "patch"]
+      polly-resilience:
+        patterns:
+          - "Polly*"
+        update-types: ["minor", "patch"]
+      serilog:
+        patterns:
+          - "Serilog*"
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions — keep workflow actions fresh.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"

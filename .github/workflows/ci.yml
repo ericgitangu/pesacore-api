@@ -1,0 +1,172 @@
+# PesaCore.Api — Continuous Integration
+#
+# Build -> unit + integration tests -> coverage -> CodeQL SAST -> Windows
+# sanity build -> IIS publish artifact. The paved road's CI fitness function.
+#
+# Layout: solution at repo root (PesaCore.Api.sln); app in src/PesaCore.Api,
+# tests in tests/PesaCore.Api.Tests.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+jobs:
+  build-and-test:
+    name: Build, Test, Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore PesaCore.Api.sln
+
+      # -warnaserror promotes nullable + analyzer warnings to build failures.
+      - name: Build (Release, warnings as errors)
+        run: dotnet build PesaCore.Api.sln --configuration Release --no-restore -warnaserror
+
+      - name: Test (unit + integration) with coverage
+        run: |
+          dotnet test PesaCore.Api.sln \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "console;verbosity=normal" \
+            --results-directory ./TestResults \
+            --collect:"XPlat Code Coverage"
+
+      - name: Generate coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        with:
+          reports: "TestResults/**/coverage.cobertura.xml"
+          targetdir: "TestResults/coverage-report"
+          reporttypes: "HtmlInline_AzurePipelines;Cobertura;MarkdownSummary"
+
+      - name: Append coverage to job summary
+        if: always()
+        run: |
+          if [ -f TestResults/coverage-report/Summary.md ]; then
+            echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            cat TestResults/coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/test-results.trx
+          retention-days: 14
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: TestResults/coverage-report/
+          retention-days: 14
+
+      # Build-once-deploy-many: publish the IIS-ready artifact in CI.
+      - name: Publish IIS artifact
+        run: |
+          dotnet publish src/PesaCore.Api/PesaCore.Api.csproj \
+            --configuration Release \
+            -p:PublishProfile=IISProfile \
+            --output ./publish/iis
+
+      - name: Upload IIS publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pesacore-api-iis-publish
+          path: ./publish/iis/
+          retention-days: 30
+
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["csharp"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  windows-build:
+    name: Windows Build (sanity)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: build-and-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Build (Release, win-x64)
+        run: dotnet build src/PesaCore.Api/PesaCore.Api.csproj --configuration Release --runtime win-x64 --self-contained false
+        shell: pwsh
+
+  markdown-lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v17
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules
+            !**/bin
+            !**/obj

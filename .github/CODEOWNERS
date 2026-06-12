@@ -1,0 +1,18 @@
+# PesaCore.Api — Code Owners
+#
+# CODEOWNERS is how a paved-road template enforces review discipline: PRs to
+# platform-owned files (CI workflows, IaC, hosting config) require platform
+# approval; feature code stays with the feature team.
+
+# Catch-all — every file requires the project owner's review by default.
+*                                               @ericgitangu
+
+# Platform-owned files — never modify without platform review.
+/.github/                                       @ericgitangu
+/infra/                                         @ericgitangu
+/src/PesaCore.Api/Properties/PublishProfiles/   @ericgitangu
+/src/PesaCore.Api/web.config                     @ericgitangu
+/src/PesaCore.Api/appsettings.json               @ericgitangu
+/src/PesaCore.Api/appsettings.Production.json    @ericgitangu
+/src/PesaCore.Api/appsettings.IIS.json           @ericgitangu
+/src/PesaCore.Api/Program.cs                      @ericgitangu

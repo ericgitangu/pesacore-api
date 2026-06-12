@@ -1,0 +1,7 @@
+{
+  // Markdownlint config for the PesaCore.Api paved-road CI.
+  // Disable purely-stylistic rules that add noise without value on prose docs.
+  "MD013": false, // line-length — prose/READMEs wrap naturally; not worth enforcing
+  "MD040": false, // fenced-code-language — allow bare ``` blocks for plain output
+  "MD041": false  // first-line-heading — allow badges/intro before the H1
+}
