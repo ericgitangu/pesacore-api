@@ -18,7 +18,7 @@
     <!-- Neon Postgres — selected at runtime when ConnectionStrings:Postgres
          is set; SQLite stays the local-dev fallback so `make run` needs no creds.
          Npgsql.EFCore 10.x tracks the EF Core 10 (net10.0) line above. -->
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     <!-- Upstash Redis — IDistributedCache backend for distributed
          idempotency + cache-aside; falls back to AddDistributedMemoryCache when
          ConnectionStrings:Redis is unset. Ships on the net10.0 shared-framework line. -->
