@@ -30,7 +30,7 @@
     <!-- OpenTelemetry — distributed tracing + metrics. See the platform paved-road standards.
          Pinned to 1.15.x — earlier 1.13.x has moderate-severity advisories
          (GHSA-g94r-2vxg-569j, GHSA-4625-4j76-fww9) fixed in 1.14+. -->
-    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry" Version="1.16.0" />
     <PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
@@ -39,7 +39,7 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.15.0-beta.1" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
-    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.16.0" />
     <!-- Prometheus scrape endpoint (/metrics) — local-dev / direct-scrape fallback only.
          OTLP push to the collector remains the PRIMARY path.
          Beta-train package (lockstep with the EF Core instrumentation beta above). -->
