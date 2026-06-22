@@ -1,0 +1,20 @@
+# ConfigMap — NON-SECRET runtime config only. Visible in `kubectl get cm -o yaml`,
+# stored as plaintext in etcd. Use it for behavioural/wiring knobs, never credentials.
+# Mounted into pods as env vars via `envFrom` (see the Deployments).
+#
+# Contrast with the Secret (secret.yaml): same key/value shape, different trust class.
+# The rule of thumb: if leaking the value matters, it's a Secret; otherwise a ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pesacore-config
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/part-of: pesacore
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  # OTLP push endpoint. In-cluster you'd point this at an OTel Collector Service
+  # (e.g. http://otel-collector:4317). Left here as the wiring seam; export
+  # failure is non-fatal (the app retries and keeps serving) — see ADR 0001.
+  OpenTelemetry__ExporterEndpoint: "http://otel-collector:4317"
+  AllowedHosts: "*"

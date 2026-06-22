@@ -1,0 +1,78 @@
+.back {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.06em;
+    color: var(--ink-dim); margin-bottom: 2rem;
+    transition: color 0.18s var(--ease);
+}
+.back:hover { color: var(--mint); }
+
+.detail {
+    max-width: 620px;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--hairline);
+    background:
+        radial-gradient(140% 120% at 100% -10%, rgba(79,224,176,0.07), transparent 45%),
+        linear-gradient(165deg, var(--slate-800), var(--slate-850));
+    box-shadow: var(--shadow);
+    padding: 2.25rem;
+}
+.detail__name { font-size: clamp(2rem, 4vw, 2.8rem); margin: 0.3rem 0 0.5rem; }
+.detail__num { font-size: 0.9rem; letter-spacing: 0.14em; color: var(--ink-dim); }
+
+.detail__balance {
+    margin: 1.75rem 0;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+}
+.detail__label { display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 0.6rem; }
+.detail__amount { display: flex; align-items: baseline; gap: 0.4rem; }
+.detail__cur { font-family: var(--mono); font-size: 1rem; color: var(--ink-faint); }
+.detail__whole { font-size: clamp(2.6rem, 7vw, 3.6rem); font-weight: 500; line-height: 1; }
+.detail__cents { font-size: 1.4rem; color: var(--ink-dim); }
+
+.meta { margin: 0 0 1.75rem; display: grid; gap: 0.1rem; }
+.meta__row { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0; border-bottom: 1px solid var(--hairline); }
+.meta__row:last-child { border-bottom: none; }
+.meta dt { color: var(--ink-faint); font-size: 0.85rem; }
+.meta dd { margin: 0; font-size: 0.9rem; }
+.meta .muted { color: var(--ink-dim); font-size: 0.8rem; }
+.meta code { font-family: var(--mono); color: var(--mint); font-size: 0.8rem; }
+
+.pill { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; padding: 0.2rem 0.6rem; border-radius: 99px; }
+.pill--ok { background: var(--ok-bg); color: var(--mint); border: 1px solid rgba(79,224,176,0.3); }
+
+.btn--solid {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 600;
+    padding: 0.75rem 1.4rem; border-radius: var(--r-sm); border: none;
+    color: var(--slate-950);
+    background: linear-gradient(180deg, #6cf0c4, var(--mint));
+    box-shadow: 0 12px 30px -12px var(--mint-glow);
+    transition: transform 0.18s var(--ease), filter 0.18s var(--ease);
+}
+.btn--solid:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.btn--ghost {
+    appearance: none; cursor: pointer; font: inherit;
+    padding: 0.45rem 0.9rem; border-radius: var(--r-sm);
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--hairline-strong);
+}
+
+.detail-skel {
+    max-width: 620px; height: 420px; border-radius: var(--r-lg);
+    border: 1px solid var(--hairline);
+    background: linear-gradient(100deg, var(--slate-850) 30%, var(--slate-800) 50%, var(--slate-850) 70%);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.enter { opacity: 0; transform: translateY(14px); animation: rise 0.6s var(--ease) forwards; }
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+/* shared banner/btn so detail page is standalone */
+.banner { display: flex; align-items: center; gap: 1rem; max-width: 620px; padding: 1.1rem 1.3rem; border-radius: var(--r-md); border: 1px solid var(--hairline); background: var(--slate-850); color: var(--ink-dim); }
+.banner p { margin: 0.2rem 0 0; font-size: 0.85rem; }
+.banner--err { border-color: rgba(255,107,107,0.35); background: var(--danger-bg); color: var(--ink); }
+.banner__icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 99px; background: var(--danger); color: var(--slate-950); font-weight: 700; }
+.banner .btn { margin-left: auto; }
+.btn--ghost:hover { background: rgba(255,255,255,0.05); }

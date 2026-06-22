@@ -1,32 +1,59 @@
-# .NET build artefacts
-[Bb]in/
-[Oo]bj/
-[Oo]ut/
-[Pp]ublish/
-artifacts/
-*.user
-*.userosscache
-*.suo
-.vs/
-*.swp
-
-# Local dev
-*.log
-*.cache
-appsettings.*.local.json
-
-# Test coverage
-coverage*.json
-TestResults/
-*.trx
-*.coverage
-*.coveragexml
-
-# IDE
+.claude/
+CLAUDE.md
+.mcp.json
+profiles.json
 .vscode/
-.idea/
-*.iml
-
-# OS
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+
+# .NET build artifacts
+[Bb]in/
+[Oo]bj/
+artifacts/
+[Tt]est[Rr]esults/
+# Local SQLite DB + WAL sidecars (any location)
+*.db
+*.db-wal
+*.db-shm
+
+# ===== Secrets — NEVER commit. Source of truth is GCP Secret Manager =====
+# (vault: gcloud secrets; Cloud Run reads them at runtime via --set-secrets).
+# Local dev pulls from `dotnet user-secrets` (stored outside the repo) or a
+# gitignored .env. Connection strings (Neon Postgres, Upstash Redis) live ONLY
+# in the vault — never in appsettings.*.json or code.
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+secrets.json
+appsettings.*.Local.json
+appsettings.Local.json
+*.pem
+*.key
+*.pfx
+*.crt
+# nginx edge self-signed certs (generated locally via `make cert`)
+edge/certs/*
+!edge/certs/.gitkeep
+.neon
+.upstash
+gha-creds-*.json
+*sa-key.json
+*-key.json
+*serviceaccount*.json
+*service-account*.json
+*credentials*.json
+clientLibraryConfig-*.json
+
+# ===== Terraform — authored, never applied. Local cache/state never committed =====
+# (.terraform.lock.hcl IS committed — it pins provider versions.)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log

@@ -1,0 +1,32 @@
+# HorizontalPodAutoscaler — scales the API Deployment's replica count on observed
+# CPU. min 2 (keep the baseline redundancy) -> max 5, target 70% average CPU
+# utilization measured against the pod's CPU REQUEST (100m, see api-deployment.yaml).
+# So a pod averaging >70m CPU triggers scale-out; sustained low CPU scales back to 2.
+#
+# REQUIRES metrics-server in the cluster (cluster-up.sh installs/verifies it) — the
+# HPA reads pod CPU from the metrics.k8s.io API. Without it, `targetCPUUtilization`
+# reports <unknown> and the HPA won't scale. This is the autoscaling proof point
+# for an architecture review; Cloud Run does the equivalent with request-based
+# concurrency autoscaling (min/max-instances in scripts/deploy.sh).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pesacore-api
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/name: pesacore-api
+    app.kubernetes.io/part-of: pesacore
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pesacore-api
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

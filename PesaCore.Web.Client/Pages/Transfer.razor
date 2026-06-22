@@ -1,0 +1,188 @@
+@page "/transfer"
+@inject PesaCoreApi Api
+@inject NavigationManager Nav
+
+<PageTitle>Transfer · PesaCore</PageTitle>
+
+<section class="head">
+    <div>
+        <div class="eyebrow">Command</div>
+        <h1 class="head__title">Transfer funds</h1>
+        <p class="head__sub">An idempotent CQRS command. Every submit carries a fresh <code>X-Idempotency-Key</code> so a retried request can never double-debit.</p>
+    </div>
+</section>
+
+@if (!_accountsLoading && _accounts.Count < 2)
+{
+    <div class="guard enter">
+        <div class="guard__glyph" aria-hidden="true">₽</div>
+        <div>
+            <strong>You need at least two accounts to transfer.</strong>
+            <p>There @(_accounts.Count == 1 ? "is 1 account" : "are no accounts") on the ledger. Open another to move funds between them.</p>
+        </div>
+        <button class="btn btn--ghost" @onclick="@(() => Nav.NavigateTo("accounts/new"))">Open an account</button>
+    </div>
+}
+
+<div class="layout">
+    <form class="form enter" @onsubmit="Submit" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="from">From account</label>
+            <select id="from" @bind="_from" disabled="@_accountsLoading">
+                <option value="">Select source…</option>
+                @foreach (var a in _accounts)
+                {
+                    <option value="@a.AccountNumber">@a.HolderName — @a.AccountNumber (@Money.Kes(a.Balance))</option>
+                }
+            </select>
+        </div>
+
+        <div class="swap" aria-hidden="true"><span>↓</span></div>
+
+        <div class="field">
+            <label for="to">To account</label>
+            <select id="to" @bind="_to" disabled="@_accountsLoading">
+                <option value="">Select destination…</option>
+                @foreach (var a in _accounts)
+                {
+                    <option value="@a.AccountNumber">@a.HolderName — @a.AccountNumber</option>
+                }
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="amount">Amount (KES)</label>
+            <div class="amount-input">
+                <span>KES</span>
+                <input id="amount" type="number" min="1" step="1" inputmode="numeric"
+                       placeholder="0" @bind="_amount" @bind:event="oninput" />
+            </div>
+        </div>
+
+        @if (_validation is not null)
+        {
+            <p class="err-line" role="alert">@_validation</p>
+        }
+
+        <button class="btn btn--solid" type="submit" disabled="@(_submitting || _accountsLoading || _accounts.Count < 2)">
+            @if (_submitting) { <span class="spin"></span><text>Posting…</text> }
+            else { <text>Authorize transfer</text> }
+        </button>
+
+        <p class="form__note">Source balance must cover the amount — the server enforces it; we mirror the check here for fast feedback.</p>
+    </form>
+
+    <aside class="receipt @(_result is null ? "" : "receipt--filled")">
+        @if (_result is null)
+        {
+            <div class="receipt__empty">
+                <div class="receipt__glyph">₽</div>
+                <p>Authorize a transfer to see the live result and the updated source balance.</p>
+            </div>
+        }
+        else if (_result.Success)
+        {
+            <div class="receipt__status receipt__status--ok">Settled</div>
+            <h2 class="receipt__msg">@_result.Message</h2>
+            <dl class="receipt__lines">
+                <div><dt>From</dt><dd class="tnum">@_lastFrom</dd></div>
+                <div><dt>To</dt><dd class="tnum">@_lastTo</dd></div>
+                <div><dt>Amount</dt><dd class="tnum">@Money.Kes(_lastAmount)</dd></div>
+                @if (_result.NewBalance is { } nb)
+                {
+                    <div class="receipt__hl"><dt>New source balance</dt><dd class="tnum">@Money.Kes(nb)</dd></div>
+                }
+            </dl>
+            <div class="receipt__key">key · <span class="tnum">@_lastKey</span></div>
+        }
+        else
+        {
+            <div class="receipt__status receipt__status--err">Rejected</div>
+            <h2 class="receipt__msg">@_result.Message</h2>
+            @if (_result.NewBalance is { } bal)
+            {
+                <dl class="receipt__lines"><div class="receipt__hl"><dt>Available</dt><dd class="tnum">@Money.Kes(bal)</dd></div></dl>
+            }
+            <div class="receipt__key">key · <span class="tnum">@_lastKey</span></div>
+        }
+    </aside>
+</div>
+
+@code {
+    private List<AccountDto> _accounts = new();
+    private bool _accountsLoading = true;
+
+    private string _from = "";
+    private string _to = "";
+    private decimal? _amount;
+
+    private string? _validation;
+    private bool _submitting;
+    private TransferResult? _result;
+
+    private string _lastFrom = "", _lastTo = "", _lastKey = "";
+    private decimal _lastAmount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Preselect "from" if arriving from an account detail page (?from=EQB001).
+        var query = Nav.ToAbsoluteUri(Nav.Uri).Query.TrimStart('?');
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = pair.Split('=', 2);
+            if (kv.Length == 2 && kv[0] == "from")
+                _from = Uri.UnescapeDataString(kv[1]);
+        }
+
+        var result = await Api.GetAccountsAsync();
+        if (result.Success) _accounts = result.Value!.ToList();
+        _accountsLoading = false;
+    }
+
+    private async Task Submit()
+    {
+        _validation = Validate();
+        if (_validation is not null) return;
+
+        _submitting = true;
+        _result = null;
+        StateHasChanged();
+
+        // One idempotency key per user-initiated submit (UUID v4). A network
+        // retry of THIS submit would reuse it for safe replay; a new submit
+        // gets a new key.
+        var key = Guid.NewGuid().ToString();
+        var amount = _amount!.Value;
+
+        var result = await Api.TransferAsync(new TransferRequest(_from, _to, amount), key);
+
+        _submitting = false;
+        if (result.Success)
+        {
+            _result = result.Value;
+            _lastFrom = _from; _lastTo = _to; _lastAmount = amount; _lastKey = key;
+            // Reflect the new balance in the source select without a full reload.
+            if (_result!.Success && _result.NewBalance is { } nb)
+            {
+                var idx = _accounts.FindIndex(a => a.AccountNumber == _from);
+                if (idx >= 0) _accounts[idx] = _accounts[idx] with { Balance = nb };
+            }
+        }
+        else
+        {
+            _validation = result.Error;
+        }
+    }
+
+    private string? Validate()
+    {
+        if (string.IsNullOrWhiteSpace(_from)) return "Choose a source account.";
+        if (string.IsNullOrWhiteSpace(_to)) return "Choose a destination account.";
+        if (_from == _to) return "Source and destination must differ.";
+        if (_amount is not { } amt || amt <= 0) return "Enter an amount greater than zero.";
+        var src = _accounts.FirstOrDefault(a => a.AccountNumber == _from);
+        if (src is not null && amt > src.Balance)
+            return $"Insufficient funds — {_from} holds {Money.Kes(src.Balance)}.";
+        return null;
+    }
+}

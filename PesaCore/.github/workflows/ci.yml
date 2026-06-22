@@ -1,0 +1,244 @@
+# PesaCore — Continuous Integration
+#
+# Triggers on every push to any branch and on pull requests targeting main.
+# Build → unit + integration tests → coverage → CodeQL SAST → publish artifact.
+#
+# This workflow is the paved road's CI fitness function — it enforces every
+# standard listed in the platform paved-road standards that can be verified in CI.
+#
+# the enterprise context: GitHub Actions is widely used inside Microsoft shops
+# alongside Azure DevOps; the YAML here is portable to azure-pipelines.yml
+# with minimal changes (steps stay; trigger and job syntax differ).
+#
+# Cost discipline: ubuntu-latest is free for public repos; $0.008/min for
+# private. ARM64 runners (ubuntu-22.04-arm) are 30% cheaper if available.
+# CodeQL is free for public repos; included in GitHub Advanced Security
+# for private — flag this if security cost becomes an issue.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel previous in-flight runs for the same branch when a new commit lands.
+# Saves Action minutes and ensures only the latest commit runs to completion.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  # Required for CodeQL to upload SARIF results.
+  security-events: write
+  # Required to comment coverage on PRs.
+  pull-requests: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  # Disable .NET telemetry in CI; reduces network noise.
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  # Skip first-run experience; we just need to compile.
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # build-and-test: the primary quality gate.
+  # Runs on Linux for speed/cost. Cross-checks happen in the windows-build job.
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    name: Build, Test, Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # NuGet restore as a separate cached step. Faster than `dotnet build`
+      # restoring inline, and lets us see restore failures distinctly.
+      - name: Restore packages
+        run: dotnet restore EquityPrepApi.csproj
+        working-directory: ${{ github.workspace }}
+
+      - name: Restore test packages
+        run: dotnet restore ../EquityPrepApi.Tests/EquityPrepApi.Tests.csproj
+        working-directory: ${{ github.workspace }}
+
+      # Build with --no-restore because restore already ran. -warnaserror catches
+      # nullable warnings and analyzer findings as failures — paved-road standard #7.
+      - name: Build (Release, warnings as errors)
+        run: |
+          dotnet build EquityPrepApi.csproj \
+            --configuration Release \
+            --no-restore \
+            -warnaserror
+        working-directory: ${{ github.workspace }}
+
+      - name: Run unit + integration tests with coverage
+        run: |
+          dotnet test ../EquityPrepApi.Tests/EquityPrepApi.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "console;verbosity=normal" \
+            --results-directory ./TestResults \
+            --collect:"XPlat Code Coverage" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        working-directory: ${{ github.workspace }}
+        continue-on-error: false
+
+      # ReportGenerator turns the cobertura coverage XML into HTML + summary.
+      # The summary (Markdown) gets posted to the GitHub job summary panel.
+      - name: Generate coverage report
+        if: always()
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        with:
+          reports: "TestResults/**/coverage.cobertura.xml"
+          targetdir: "TestResults/coverage-report"
+          reporttypes: "HtmlInline_AzurePipelines;Cobertura;MarkdownSummary"
+
+      - name: Append coverage to job summary
+        if: always()
+        run: |
+          if [ -f TestResults/coverage-report/Summary.md ]; then
+            echo "## Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            cat TestResults/coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/test-results.trx
+          retention-days: 14
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: TestResults/coverage-report/
+          retention-days: 14
+
+      # Publish an IIS-ready artifact as part of CI so `release.yml` can pull
+      # it without re-building. Banking discipline: build once, deploy many.
+      - name: Publish IIS artifact
+        run: |
+          dotnet publish EquityPrepApi.csproj \
+            --configuration Release \
+            --no-build \
+            -p:PublishProfile=IISProfile \
+            --output ./publish/iis
+        working-directory: ${{ github.workspace }}
+
+      - name: Upload IIS publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pesacore-iis-publish
+          path: ./publish/iis/
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # codeql: SAST. Runs on a separate runner because it's slow.
+  # Paved-road standard #13: CI runs SAST on every PR.
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["csharp"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ---------------------------------------------------------------------------
+  # windows-build: cross-check that the code compiles on Windows.
+  # The on-prem deployment target is Windows Server, so verify the build
+  # actually works there. Skip tests here — they ran on Linux already.
+  # Cost note: windows-latest is 2x the per-minute price of ubuntu-latest.
+  # We minimize duration: build only, no tests, no publish, no artifact.
+  # ---------------------------------------------------------------------------
+  windows-build:
+    name: Windows Build (sanity)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build (Release, win-x64)
+        run: |
+          dotnet build EquityPrepApi.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained false
+        shell: pwsh
+
+  # ---------------------------------------------------------------------------
+  # markdown-lint: docs are part of the paved road. Standard #17 and #20.
+  # ---------------------------------------------------------------------------
+  markdown-lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v17
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules
+            !**/bin
+            !**/obj
+        # No continue-on-error — paved-road standards #17 and #20 are
+        # enforced. Specific rules can be disabled in .markdownlint.jsonc.

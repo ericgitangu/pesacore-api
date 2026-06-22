@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PesaCore.Tests/PesaCore.Tests.csproj" />
+  <Project Path="PesaCore.Web.Client/PesaCore.Web.Client.csproj" />
+  <Project Path="PesaCore.Web/PesaCore.Web.csproj" />
+  <Project Path="PesaCore/PesaCore.csproj" />
+</Solution>

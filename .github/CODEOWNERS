@@ -10,9 +10,9 @@
 # Platform-owned files — never modify without platform review.
 /.github/                                       @ericgitangu
 /infra/                                         @ericgitangu
-/src/PesaCore.Api/Properties/PublishProfiles/   @ericgitangu
-/src/PesaCore.Api/web.config                     @ericgitangu
-/src/PesaCore.Api/appsettings.json               @ericgitangu
-/src/PesaCore.Api/appsettings.Production.json    @ericgitangu
-/src/PesaCore.Api/appsettings.IIS.json           @ericgitangu
-/src/PesaCore.Api/Program.cs                      @ericgitangu
+/PesaCore/Properties/PublishProfiles/   @ericgitangu
+/PesaCore/web.config                     @ericgitangu
+/PesaCore/appsettings.json               @ericgitangu
+/PesaCore/appsettings.Production.json    @ericgitangu
+/PesaCore/appsettings.IIS.json           @ericgitangu
+/PesaCore/Program.cs                      @ericgitangu

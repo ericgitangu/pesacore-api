@@ -1,0 +1,52 @@
+# Keep the build context small and deterministic. Without this, `docker build`
+# ships bin/obj, the local SQLite DB + WAL sidecars, and .git into the daemon —
+# slow, and risks baking stale/native-built artifacts into the image.
+
+# Build outputs (rebuilt inside the image)
+**/bin/
+**/obj/
+**/out/
+
+# Local SQLite DB + WAL sidecars (the orphaned -wal/-shm are exactly what caused
+# the "SQLite Error 10: disk I/O error" — never copy them into an image)
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+# VCS / IDE / tooling
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+**/*.user
+
+# Docker + infra (not needed inside the build context)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+PesaCore/infra/
+
+# Deploy/edge/cluster/IaC + tooling — none are COPY'd into the app image
+infra/
+deploy/
+edge/
+observability/
+scripts/
+services/
+.husky/
+artifacts/
+[Tt]est[Rr]esults/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+cloudbuild.yaml
+
+# Repo docs / prep material — irrelevant to the runtime image
+*.md
+cigna/
+cheatsheets/
+PesaCore/docs/
+
+# Never ship Claude/local tooling state
+.claude/

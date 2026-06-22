@@ -1,0 +1,62 @@
+# escape=`
+# PesaCore — Windows container that MIRRORS THE ON-PREM IIS HOST.
+#
+# This is the production-grade "data/stack sovereignty" artifact: the exact stack
+# the enterprise runs on-prem — Windows Server + IIS + the ASP.NET Core Module (ANCM) —
+# consuming the SAME web.config that PesaCore/web.config defines. Nothing about the
+# app changes; only the front door (IIS instead of bare Kestrel, or a Linux container).
+#
+# !! CONSTRAINTS — READ BEFORE BUILDING !!
+#   * Windows containers run ONLY on a Windows host in Windows-container mode.
+#     They do NOT run on macOS (arm64) or Linux. This file was authored but
+#     NOT built/verified here — verify it on a Windows Server / Win11 + Docker host.
+#   * The hosting-bundle installer URL changes per patch release. Pin it via
+#     --build-arg HOSTING_BUNDLE_URL=... from dotnet.microsoft.com/download/dotnet/10.0
+#     (the "Hosting Bundle" Windows x64 link). Do not trust an unpinned default.
+#   * Pin the OS tag (ltsc2022) to your host's kernel — Windows containers require
+#     host/container OS-version compatibility unless using Hyper-V isolation.
+#
+#   Build (on a Windows host):
+#     docker build -f Dockerfile.windows `
+#       --build-arg HOSTING_BUNDLE_URL="https://.../dotnet-hosting-10.0.x-win.exe" `
+#       -t pesacore:iis .
+#     docker run --rm -p 8080:80 pesacore:iis   # -> http://localhost:8080/Accounts/best
+
+# ---- build stage (Linux SDK is fine — published IL is OS-portable) ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY ["PesaCore/PesaCore.csproj", "PesaCore/"]
+RUN dotnet restore "PesaCore/PesaCore.csproj"
+COPY PesaCore/ PesaCore/
+RUN dotnet publish "PesaCore/PesaCore.csproj" -c Release -o /app /p:UseAppHost=false
+
+# ---- runtime stage: Windows Server Core + IIS + ANCM ----
+FROM mcr.microsoft.com/windows/servercore:ltsc2022 AS runtime
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# Enable the IIS web-server role — the same role installed on the on-prem box.
+RUN Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+
+# Install the ASP.NET Core Hosting Bundle. THIS is what registers
+# AspNetCoreModuleV2 (ANCM) into IIS — the exact module that PesaCore/web.config's
+# <handlers> entry (modules="AspNetCoreModuleV2") and <aspNetCore processPath="dotnet"
+# arguments=".\PesaCore.dll"> depend on. Without it, IIS serves the app as static
+# files and returns 404s / raw bytes (the failure mode web.config's comments warn about).
+ARG HOSTING_BUNDLE_URL="https://dotnet.microsoft.com/download/dotnet/10.0"
+RUN Invoke-WebRequest -OutFile hosting.exe -Uri $env:HOSTING_BUNDLE_URL ; `
+    Start-Process -FilePath .\hosting.exe -ArgumentList '/quiet','/install' -Wait ; `
+    Remove-Item hosting.exe ; `
+    net stop was /y ; `
+    net start w3svc
+
+# ServiceMonitor keeps the IIS service (w3svc) in the foreground so the container
+# stays alive and exits if IIS dies — the container-correct way to host IIS.
+ADD https://github.com/microsoft/IIS.ServiceMonitor/releases/latest/download/ServiceMonitor.exe /ServiceMonitor.exe
+
+# Deploy the published app to the IIS site root. The published web.config travels
+# with /app and is consumed by IIS HERE exactly as it is on the on-prem server.
+WORKDIR /inetpub/wwwroot
+COPY --from=build /app .
+
+EXPOSE 80
+ENTRYPOINT ["C:\\ServiceMonitor.exe", "w3svc"]

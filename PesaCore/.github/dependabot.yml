@@ -1,0 +1,94 @@
+# PesaCore — Dependabot Configuration
+#
+# Automated dependency updates. Critical for SAST/SCA discipline and CBK / the enterprise
+# compliance — out-of-date packages with known CVEs are a security finding.
+#
+# the enterprise context: this file ships with the paved-road template so every
+# product team gets weekly dependency hygiene without configuring it.
+#
+# Cost discipline: Dependabot is free on GitHub. Worst case is a noisy
+# week of PRs after a major framework update; we mitigate with grouping and
+# target-branch restriction.
+
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # NuGet packages — primary surface. Group minor/patch updates to reduce noise.
+  # Major updates ship as individual PRs because they need human review.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 10
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "nuget"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    groups:
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+          - "Microsoft.AspNetCore.*"
+        update-types:
+          - "minor"
+          - "patch"
+      ef-core:
+        patterns:
+          - "Microsoft.EntityFrameworkCore.*"
+        update-types:
+          - "minor"
+          - "patch"
+      opentelemetry:
+        patterns:
+          - "OpenTelemetry.*"
+        update-types:
+          - "minor"
+          - "patch"
+      test-deps:
+        patterns:
+          - "xunit*"
+          - "Moq"
+          - "FluentAssertions"
+          - "coverlet.*"
+          - "Microsoft.NET.Test.Sdk"
+        update-types:
+          - "minor"
+          - "patch"
+      polly-resilience:
+        patterns:
+          - "Polly*"
+        update-types:
+          - "minor"
+          - "patch"
+      serilog:
+        patterns:
+          - "Serilog*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — keep workflow actions fresh.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Africa/Nairobi"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"

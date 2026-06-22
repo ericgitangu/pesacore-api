@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Rigorous pre-commit gate (Husky.Net): format-verify staged C# + secret scan.
+# Fast — runs on staged files only. Fix formatting with `make format`.
+dotnet husky run --group pre-commit

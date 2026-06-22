@@ -1,0 +1,20 @@
+# Grafana datasource provisioning — auto-loaded on startup (no manual UI setup).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # In-network service name on the compose network.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+  # Jaeger — traces/APM backend (ADR 0004). Grafana queries it for the trace view.
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
