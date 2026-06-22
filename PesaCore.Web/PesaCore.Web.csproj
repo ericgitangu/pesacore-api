@@ -11,7 +11,7 @@
     <!-- Server-side support for hosting a Blazor WebAssembly client:
          brings UseBlazorFrameworkFiles() + the build-time copy of the
          published WASM payload into this host's wwwroot. -->
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.6" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
   </ItemGroup>
 
   <ItemGroup>
