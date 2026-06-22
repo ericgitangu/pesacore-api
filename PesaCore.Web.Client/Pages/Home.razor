@@ -1,0 +1,108 @@
+@page "/"
+@inject PesaCoreApi Api
+@inject NavigationManager Nav
+
+<PageTitle>Accounts · PesaCore</PageTitle>
+
+<section class="head">
+    <div>
+        <div class="eyebrow">Ledger</div>
+        <h1 class="head__title">Accounts</h1>
+        <p class="head__sub">Live balances projected straight from the core ledger via the BFF gateway.</p>
+    </div>
+    <div class="head__actions">
+        @if (_accounts is { Count: > 0 })
+        {
+            <div class="head__stat">
+                <span class="head__stat-label">Total on book</span>
+                <span class="head__stat-value tnum">@Money.Kes(_accounts.Sum(a => a.Balance))</span>
+            </div>
+        }
+        <button class="btn btn--solid" @onclick="NewAccount">+ New account</button>
+    </div>
+</section>
+
+@if (_loading)
+{
+    <div class="grid">
+        @for (var i = 0; i < 3; i++)
+        {
+            <div class="skel"></div>
+        }
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="banner banner--err" role="alert">
+        <span class="banner__icon">!</span>
+        <div>
+            <strong>Could not load accounts.</strong>
+            <p>@_error</p>
+        </div>
+        <button class="btn btn--ghost" @onclick="Load">Retry</button>
+    </div>
+}
+else if (_accounts is { Count: > 0 })
+{
+    <div class="grid">
+        @{ var idx = 0; }
+        @foreach (var a in _accounts)
+        {
+            var delay = $"{idx * 70}ms";
+            idx++;
+            <button class="card enter" style="animation-delay:@delay"
+                    @onclick="() => Open(a.AccountNumber)"
+                    aria-label="@($"Open account {a.AccountNumber}, holder {a.HolderName}")">
+                <div class="card__top">
+                    <span class="card__holder">@a.HolderName</span>
+                    <span class="card__chip" aria-hidden="true"></span>
+                </div>
+                <div class="card__num tnum">@Spaced(a.AccountNumber)</div>
+                <div class="card__balance">
+                    <span class="card__cur">KES</span>
+                    <span class="card__whole tnum">@Money.Parts(a.Balance).whole</span>
+                    <span class="card__cents tnum">@Money.Parts(a.Balance).cents</span>
+                </div>
+                <div class="card__foot">
+                    <span><span class="card__tx tnum">@a.TransactionCount</span> transactions</span>
+                    <span class="card__go" aria-hidden="true">→</span>
+                </div>
+            </button>
+        }
+    </div>
+}
+else
+{
+    <div class="empty enter">
+        <div class="empty__glyph" aria-hidden="true">₽</div>
+        <h2 class="empty__title">No accounts yet</h2>
+        <p class="empty__sub">The ledger is empty. Open your first account to start moving money.</p>
+        <button class="btn btn--solid" @onclick="NewAccount">Create your first account</button>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<AccountDto>? _accounts;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; StateHasChanged();
+        var result = await Api.GetAccountsAsync();
+        if (result.Success) _accounts = result.Value;
+        else _error = result.Error;
+        _loading = false;
+    }
+
+    private void Open(string accountNumber) => Nav.NavigateTo($"accounts/{accountNumber}");
+
+    private void NewAccount() => Nav.NavigateTo("accounts/new");
+
+    // Group the account number into readable quads for the "card" feel.
+    private static string Spaced(string n) =>
+        string.Join(" ", Enumerable.Range(0, (n.Length + 3) / 4)
+            .Select(i => n.Substring(i * 4, Math.Min(4, n.Length - i * 4))));
+}

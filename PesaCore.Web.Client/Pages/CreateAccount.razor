@@ -1,0 +1,137 @@
+@page "/accounts/new"
+@inject PesaCoreApi Api
+@inject NavigationManager Nav
+
+<PageTitle>New account · PesaCore</PageTitle>
+
+<section class="head">
+    <div>
+        <div class="eyebrow">Command</div>
+        <h1 class="head__title">Open an account</h1>
+        <p class="head__sub">An idempotent CQRS command. The account number is allocated server-side (<code>EQBnnn</code>) and the new account persists to the real ledger.</p>
+    </div>
+</section>
+
+<div class="layout">
+    <form class="form enter" @onsubmit="Submit" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="holder">Account holder</label>
+            <div class="text-input">
+                <input id="holder" type="text" maxlength="100" autocomplete="off"
+                       placeholder="e.g. Dana Mwangi" @bind="_holderName" @bind:event="oninput" />
+            </div>
+        </div>
+
+        <div class="field">
+            <label for="opening">Opening balance (KES)</label>
+            <div class="amount-input">
+                <span>KES</span>
+                <input id="opening" type="number" min="0" step="1" inputmode="numeric"
+                       placeholder="0" @bind="_openingBalance" @bind:event="oninput" />
+            </div>
+        </div>
+
+        @if (_validation is not null)
+        {
+            <p class="err-line" role="alert">@_validation</p>
+        }
+
+        <button class="btn btn--solid" type="submit" disabled="@_submitting">
+            @if (_submitting) { <span class="spin"></span><text>Opening…</text> }
+            else { <text>Open account</text> }
+        </button>
+
+        <p class="form__note">Holder name is required (2–100 chars); opening balance may be zero but never negative — the server enforces both.</p>
+    </form>
+
+    <aside class="receipt @(_result is null ? "" : "receipt--filled")">
+        @if (_result is null)
+        {
+            <div class="receipt__empty">
+                <div class="receipt__glyph">₽</div>
+                <p>Open an account to see its allocated number and starting balance.</p>
+            </div>
+        }
+        else if (_result.Success)
+        {
+            <div class="receipt__status receipt__status--ok">Opened</div>
+            <h2 class="receipt__msg">@_result.Message</h2>
+            <dl class="receipt__lines">
+                <div><dt>Holder</dt><dd class="tnum">@_result.HolderName</dd></div>
+                <div><dt>Account</dt><dd class="tnum">@_result.AccountNumber</dd></div>
+                @if (_result.Balance is { } bal)
+                {
+                    <div class="receipt__hl"><dt>Opening balance</dt><dd class="tnum">@Money.Kes(bal)</dd></div>
+                }
+            </dl>
+            <div class="receipt__key">key · <span class="tnum">@_lastKey</span></div>
+            <p class="form__note">Returning to the dashboard…</p>
+        }
+        else
+        {
+            <div class="receipt__status receipt__status--err">Rejected</div>
+            <h2 class="receipt__msg">@_result.Message</h2>
+            <div class="receipt__key">key · <span class="tnum">@_lastKey</span></div>
+        }
+    </aside>
+</div>
+
+@code {
+    private string _holderName = "";
+    private decimal? _openingBalance;
+
+    private string? _validation;
+    private bool _submitting;
+    private CreateAccountResult? _result;
+    private string _lastKey = "";
+
+    private async Task Submit()
+    {
+        _validation = Validate();
+        if (_validation is not null) return;
+
+        _submitting = true;
+        _result = null;
+        StateHasChanged();
+
+        // One idempotency key per user-initiated submit (UUID v4) — a network retry of
+        // THIS submit reuses it for safe replay (no duplicate account); a new submit
+        // gets a new key. Same contract as Transfer.razor.
+        var key = Guid.NewGuid().ToString();
+        var opening = _openingBalance ?? 0m;
+
+        var result = await Api.CreateAccountAsync(
+            new CreateAccountRequest(_holderName.Trim(), opening), key);
+
+        _submitting = false;
+        _lastKey = key;
+
+        if (result.Success)
+        {
+            _result = result.Value;
+            if (_result!.Success)
+            {
+                StateHasChanged();
+                // Let the success state render briefly, then return to the dashboard.
+                // The dashboard reloads on navigation (OnInitializedAsync), so the new
+                // account appears straight away.
+                await Task.Delay(900);
+                Nav.NavigateTo("");
+            }
+        }
+        else
+        {
+            _validation = result.Error;
+        }
+    }
+
+    // Client-side fast feedback; the server (CreateAccountValidator) is the authority.
+    private string? Validate()
+    {
+        var name = _holderName.Trim();
+        if (name.Length < 2) return "Enter a holder name (at least 2 characters).";
+        if (name.Length > 100) return "Holder name must be 100 characters or fewer.";
+        if (_openingBalance is { } bal && bal < 0) return "Opening balance cannot be negative.";
+        return null;
+    }
+}

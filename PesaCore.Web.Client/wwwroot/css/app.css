@@ -1,0 +1,139 @@
+/* =========================================================================
+   PesaCore — bespoke design system (hand-written, no CSS framework)
+   Aesthetic: refined institutional dark. A precision instrument, not a
+   fintech toy. Near-black slate, a single cool mint accent, parchment text,
+   monospaced tabular figures for all money. Hairline borders, one
+   orchestrated entrance.
+
+   NOTE ON TAILWIND: the brief asked to try the Tailwind standalone CLI first.
+   Network egress is blocked in this build environment, so the binary could
+   not be fetched. Per the brief's documented fallback, this is hand-written
+   modern CSS using custom properties — no framework, no npm/node. The README
+   documents the exact Tailwind swap path for an environment with egress.
+   ========================================================================= */
+
+:root {
+    /* --- palette --- */
+    --slate-950: #070a0b;
+    --slate-900: #0a0e0f;
+    --slate-850: #0f1416;
+    --slate-800: #141b1d;
+    --slate-750: #1a2326;
+    --slate-700: #233032;
+    --hairline:  rgba(180, 220, 214, 0.10);
+    --hairline-strong: rgba(180, 220, 214, 0.18);
+
+    --ink:       #eef2ee;          /* parchment-ivory */
+    --ink-dim:   #9aa8a3;
+    --ink-faint: #5f6f6a;
+
+    --mint:      #4fe0b0;          /* the single accent — "money" without cliché green */
+    --mint-deep: #1f8f6f;
+    --mint-glow: rgba(79, 224, 176, 0.16);
+
+    --gold:      #d7b16b;          /* secondary, for highlighted figures */
+    --danger:    #ff6b6b;
+    --danger-bg: rgba(255, 107, 107, 0.10);
+    --ok-bg:     rgba(79, 224, 176, 0.10);
+
+    /* --- type --- */
+    --display: "Fraunces", Georgia, serif;
+    --sans:    "IBM Plex Sans", system-ui, sans-serif;
+    --mono:    "IBM Plex Mono", ui-monospace, monospace;
+
+    /* --- geometry --- */
+    --r-sm: 6px;
+    --r-md: 12px;
+    --r-lg: 18px;
+    --shadow: 0 1px 0 rgba(255,255,255,0.03) inset,
+              0 20px 50px -30px rgba(0,0,0,0.9);
+    --gutter: clamp(1.25rem, 4vw, 3rem);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+    font-family: var(--sans);
+    background-color: var(--slate-900);
+    background-image:
+        radial-gradient(1100px 700px at 82% -10%, rgba(79, 224, 176, 0.07), transparent 60%),
+        radial-gradient(900px 600px at -5% 110%, rgba(40, 90, 120, 0.10), transparent 55%);
+    background-attachment: fixed;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+    line-height: 1.5;
+}
+
+h1, h2, h3 { font-family: var(--display); font-weight: 500; letter-spacing: -0.01em; margin: 0; }
+
+a { color: inherit; text-decoration: none; }
+
+.tnum { font-family: var(--mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+.eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--mint);
+}
+
+/* visible keyboard focus everywhere — accessibility */
+:focus-visible {
+    outline: 2px solid var(--mint);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* =======================  BOOT SCREEN  ======================= */
+.boot {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0.55rem;
+    background:
+        radial-gradient(700px 500px at 50% 35%, rgba(79,224,176,0.08), transparent 60%),
+        var(--slate-950);
+    z-index: 9999;
+}
+.boot__mark {
+    width: 64px; height: 64px; border-radius: 16px;
+    display: grid; place-items: center;
+    background: linear-gradient(160deg, var(--slate-750), var(--slate-900));
+    border: 1px solid var(--hairline-strong);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 30px 60px -30px rgba(79,224,176,0.4);
+    animation: bootPulse 2.4s var(--ease) infinite;
+}
+.boot__glyph { font-family: var(--display); font-size: 2rem; color: var(--mint); }
+.boot__wordmark { font-family: var(--display); font-size: 1.9rem; letter-spacing: -0.02em; margin-top: 0.4rem; }
+.boot__tag { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+.boot__bar { width: 190px; height: 2px; margin-top: 1rem; background: var(--slate-750); border-radius: 99px; overflow: hidden; }
+.boot__bar-fill { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, transparent, var(--mint), transparent); animation: bootSlide 1.3s var(--ease) infinite; }
+.boot__status { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-faint); margin-top: 0.35rem; }
+
+@keyframes bootPulse { 0%,100% { transform: translateY(0); box-shadow: 0 30px 60px -30px rgba(79,224,176,0.25); } 50% { transform: translateY(-4px); box-shadow: 0 36px 70px -28px rgba(79,224,176,0.5); } }
+@keyframes bootSlide { 0% { transform: translateX(-120%); } 100% { transform: translateX(360%); } }
+
+/* =======================  ERROR UI  ======================= */
+#blazor-error-ui {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 0.9rem 1.25rem;
+    background: var(--danger-bg);
+    border-top: 1px solid rgba(255,107,107,0.4);
+    color: var(--ink);
+    font-family: var(--mono); font-size: 0.85rem;
+    z-index: 10000;
+    display: none;
+    align-items: center; gap: 1rem;
+}
+#blazor-error-ui .reload { color: var(--mint); border-bottom: 1px solid var(--mint); }
+#blazor-error-ui .dismiss { margin-left: auto; cursor: pointer; color: var(--ink-dim); }

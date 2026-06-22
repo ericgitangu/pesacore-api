@@ -1,0 +1,25 @@
+# PesaCore — Code Owners
+#
+# Default owner for everything in the repository.
+# When a Cigna platform team adopts this template, this file is overwritten
+# with the actual platform team's GitHub team handle (e.g., @cigna-ioh/platform).
+#
+# Cigna IOH context: CODEOWNERS is how a paved-road template enforces
+# review discipline. PRs to platform-owned files (CI workflows, IaC, web.config)
+# require platform-team approval; PRs to feature code stay with the feature team.
+
+# Catch-all — every file requires the project owner's review by default.
+*                                       @ericgitangu
+
+# Platform-team-owned files — never modify without platform-team approval.
+/.github/                               @ericgitangu
+/infra/                                 @ericgitangu
+/Properties/PublishProfiles/            @ericgitangu
+/web.config                             @ericgitangu
+/appsettings.json                       @ericgitangu
+/appsettings.Production.json            @ericgitangu
+/appsettings.IIS.json                   @ericgitangu
+/Program.cs                             @ericgitangu
+
+# Migration / docs — paved-road documentation.
+/docs/                                  @ericgitangu

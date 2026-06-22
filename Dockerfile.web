@@ -1,0 +1,68 @@
+# PesaCore.Web — BFF host + Blazor WebAssembly client, one image.
+#
+# Stage 1 builds the WASM client and publishes the BFF host (the ProjectReference
+# makes `dotnet publish PesaCore.Web` emit the client's static payload into the
+# host's wwwroot). Stage 2 is the slim aspnet runtime, non-root, $PORT-aware for
+# Cloud Run, with a real-route HEALTHCHECK.
+#
+# Build context is the REPO ROOT:
+#   docker build -f Dockerfile.web -t pesacore-web .
+#   docker run --rm -p 8090:8080 -e PesaCore__BaseUrl=http://host.docker.internal:5235 pesacore-web
+
+# ---- build stage ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Restore first (cache-friendly): both csprojs + the proj graph they need.
+COPY PesaCore.Web/PesaCore.Web.csproj PesaCore.Web/
+COPY PesaCore.Web.Client/PesaCore.Web.Client.csproj PesaCore.Web.Client/
+RUN dotnet restore PesaCore.Web/PesaCore.Web.csproj
+
+# Source, then publish a Release build. Publishing the host pulls in the
+# client's published wwwroot via the ProjectReference.
+COPY PesaCore.Web/ PesaCore.Web/
+COPY PesaCore.Web.Client/ PesaCore.Web.Client/
+RUN dotnet publish PesaCore.Web/PesaCore.Web.csproj -c Release -o /app /p:UseAppHost=false
+
+# The host-merged publish leaves index.html's <script type="importmap"> EMPTY —
+# the fingerprint placeholders + import map are populated only by the client's OWN
+# (standalone) publish. Without the import map the WASM runtime can't map canonical
+# names (dotnet.js, blazor.webassembly.js) to the fingerprinted files -> 404 -> the
+# app never mounts (stuck boot screen). Standalone-publish the client and overlay its
+# resolved wwwroot. See docs/issues_caught_and_resolved.md #1.
+RUN set -e; \
+    dotnet publish PesaCore.Web.Client/PesaCore.Web.Client.csproj -c Release -o /client /p:UseAppHost=false; \
+    cp -r /client/wwwroot/. /app/wwwroot/; \
+    BOOT=$(ls /app/wwwroot/_framework/ | grep -E '^blazor\.webassembly\.[a-z0-9]+\.js$' | head -1); \
+    test -n "$BOOT"; \
+    sed -i "s|_framework/blazor\.webassembly[^\"]*\.js|_framework/$BOOT|" /app/wwwroot/index.html; \
+    echo "Baked boot script -> $BOOT"; grep -o "_framework/blazor.webassembly[^\"]*\.js" /app/wwwroot/index.html
+
+# ---- runtime stage ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+# curl only for the HEALTHCHECK (the aspnet image ships none).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /app .
+
+# Cloud Run injects $PORT; default to 8080 for local/compose. Kestrel binds it.
+ENV PORT=8080
+ENV ASPNETCORE_URLS=http://+:8080
+# BFF default upstream; overridden per environment (compose / Cloud Run env).
+ENV PesaCore__BaseUrl=http://localhost:5235
+
+# Non-root (the aspnet image ships the "app" user, UID 64198). No writable
+# state needed — the BFF holds no database, so no chown dance required.
+USER app
+
+EXPOSE 8080
+
+# Liveness on a real route mapped by the BFF (MapHealthChecks("/healthz")).
+HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost:8080/healthz || exit 1
+
+ENTRYPOINT ["dotnet", "PesaCore.Web.dll"]

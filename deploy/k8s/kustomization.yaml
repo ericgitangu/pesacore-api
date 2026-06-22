@@ -1,0 +1,22 @@
+# kustomization — lets the whole tier apply/delete as a unit:
+#   kubectl apply -k deploy/k8s/        kubectl delete -k deploy/k8s/
+# Ordering note: kustomize/kubectl apply Namespaces and ConfigMaps/Secrets before
+# the workloads that reference them, so a single `apply -k` is sufficient.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pesacore
+
+commonLabels:
+  app.kubernetes.io/part-of: pesacore
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - web-deployment.yaml
+  - web-service.yaml
+  - ingress.yaml
+  - api-hpa.yaml

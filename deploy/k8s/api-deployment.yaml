@@ -1,0 +1,73 @@
+# pesacore-api — the ASP.NET Core / Kestrel API. Listens on :8080.
+#
+# Deployment = a controller that keeps `replicas` identical Pods running (a
+# ReplicaSet under the hood) and rolls updates without downtime. Two replicas
+# here means the Service can load-balance across them and one can die / be
+# rescheduled while the other serves — the orchestration story k3d/kind proves
+# locally that a single `docker run` can't.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pesacore-api
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/name: pesacore-api
+    app.kubernetes.io/part-of: pesacore
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: pesacore-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: pesacore-api
+    spec:
+      containers:
+        - name: pesacore-api
+          # Locally-built image, imported into the cluster's containerd via
+          # `k3d image import pesacore:linux` (cluster-up.sh). NEVER pulled from a
+          # registry — IfNotPresent so the node uses the imported copy.
+          image: pesacore:linux
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          # Config wiring: non-secret env from the ConfigMap, credentials from the
+          # Secret stub. envFrom pulls every key in each object as an env var.
+          envFrom:
+            - configMapRef:
+                name: pesacore-config
+            - secretRef:
+                name: pesacore-secrets
+          # Probes are how k8s knows "alive" vs "ready to receive traffic":
+          #  - readiness gates Service endpoints: a failing pod is pulled OUT of
+          #    rotation but NOT killed (lets it warm up / recover).
+          #  - liveness restarts a wedged pod (passes readiness once, then hangs).
+          # /Accounts/best is a cheap real endpoint (matches the compose healthcheck).
+          readinessProbe:
+            httpGet:
+              path: /Accounts/best
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /Accounts/best
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Resource requests/limits: REQUESTS are what the scheduler reserves and
+          # what the HPA's "70% of CPU" is measured against (70% of the 100m request).
+          # LIMITS cap burst. Without a CPU request the HPA has no denominator.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

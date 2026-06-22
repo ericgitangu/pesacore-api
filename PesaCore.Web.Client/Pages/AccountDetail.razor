@@ -1,0 +1,77 @@
+@page "/accounts/{AccountNumber}"
+@inject PesaCoreApi Api
+@inject NavigationManager Nav
+
+<PageTitle>@AccountNumber · PesaCore</PageTitle>
+
+<a class="back" href="">← All accounts</a>
+
+@if (_loading)
+{
+    <div class="detail-skel"></div>
+}
+else if (_error is not null)
+{
+    <div class="banner banner--err" role="alert">
+        <span class="banner__icon">!</span>
+        <div><strong>Account unavailable.</strong><p>@_error</p></div>
+        <button class="btn btn--ghost" @onclick="Load">Retry</button>
+    </div>
+}
+else if (_balance is not null)
+{
+    <section class="detail enter">
+        <div class="detail__head">
+            <div class="eyebrow">Account holder</div>
+            <h1 class="detail__name">@_balance.HolderName</h1>
+            <div class="detail__num tnum">@_balance.AccountNumber</div>
+        </div>
+
+        <div class="detail__balance">
+            <span class="detail__label">Available balance</span>
+            <div class="detail__amount">
+                <span class="detail__cur">KES</span>
+                <span class="detail__whole tnum">@Money.Parts(_balance.Balance).whole</span>
+                <span class="detail__cents tnum">@Money.Parts(_balance.Balance).cents</span>
+            </div>
+        </div>
+
+        <dl class="meta">
+            <div class="meta__row">
+                <dt>Account number</dt>
+                <dd class="tnum">@_balance.AccountNumber</dd>
+            </div>
+            <div class="meta__row">
+                <dt>Status</dt>
+                <dd><span class="pill pill--ok">Active</span></dd>
+            </div>
+            <div class="meta__row">
+                <dt>Source</dt>
+                <dd class="muted">CQRS query · <code>/api/Cqrs/balance</code></dd>
+            </div>
+        </dl>
+
+        <button class="btn btn--solid" @onclick="GoTransfer">Initiate transfer</button>
+    </section>
+}
+
+@code {
+    [Parameter] public string AccountNumber { get; set; } = "";
+
+    private AccountBalance? _balance;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnParametersSetAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true; _error = null; StateHasChanged();
+        var result = await Api.GetBalanceAsync(AccountNumber);
+        if (result.Success) _balance = result.Value;
+        else _error = result.Error;
+        _loading = false;
+    }
+
+    private void GoTransfer() => Nav.NavigateTo($"transfer?from={AccountNumber}");
+}

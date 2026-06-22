@@ -1,0 +1,168 @@
+# PesaCore — local orchestration. Use with `dc` (docker compose).
+#
+#   dc up --build            # Linux/Kestrel — runs on this arm64 Mac
+#   dc --profile windows up  # Windows/IIS mirror — ONLY on a Windows host
+#
+# Two services, one app: the difference is purely the front door (Kestrel vs IIS),
+# which is the on-prem -> hybrid story the enterprise runs.
+
+services:
+  # ---- Linux / Kestrel: the practical local + CI container ----
+  pesacore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pesacore:linux
+    ports:
+      - "8080:8080"      # http://localhost:8080/scalar/v1  (Development env)
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      # OTLP push to the collector — PRIMARY metrics/traces path.
+      # The collector is only started under the `observability` profile; when that
+      # profile is down this endpoint is unreachable and OTel silently retries —
+      # the app still serves traffic (export failure is non-fatal).
+      OpenTelemetry__ExporterEndpoint: http://otel-collector:4317
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/Accounts/best"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---- BFF + Blazor WASM front end ----
+  # Serves the WASM SPA and reverse-proxies /api/* to the `pesacore` service.
+  # The browser only ever talks to this origin (host :8090) -> no CORS, no API
+  # URL in the client. Mirrors the Cloud Run shape: listens on $PORT (8080).
+  pesacore-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    image: pesacore-web:linux
+    ports:
+      - "8090:8080"      # http://localhost:8090  (the SPA)
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      PORT: "8080"
+      # In-network upstream: the API service name on the compose network.
+      PesaCore__BaseUrl: http://pesacore:8080
+    depends_on:
+      pesacore:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ---- Windows / IIS: faithful on-prem mirror. Opt-in; Windows host only. ----
+  pesacore-iis:
+    profiles: ["windows"]
+    build:
+      context: .
+      dockerfile: Dockerfile.windows
+      args:
+        # Pin to the exact Hosting Bundle installer from dotnet.microsoft.com.
+        HOSTING_BUNDLE_URL: "https://dotnet.microsoft.com/download/dotnet/10.0"
+    image: pesacore:iis
+    ports:
+      - "8081:80"        # http://localhost:8081/Accounts/best
+    restart: unless-stopped
+
+  # ============================================================================
+  # OBSERVABILITY STACK — opt-in profile. Start with:
+  #   dc --profile observability up -d
+  # Topology: pesacore --OTLP--> otel-collector --/metrics--> prometheus --> grafana
+  # ============================================================================
+
+  # ---- OTel Collector: the hub. Receives OTLP from the app, scrapes hostmetrics,
+  #      re-exposes everything in Prometheus format on :8889. ----
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:0.116.1
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+      # hostmetrics host mounts (read-only). The collector reads these via
+      # root_path=/hostfs in the config.
+      # NOTE: on Docker-Desktop/Mac these reflect the Docker
+      # LINUX VM, not the bare macOS host. True bare-host metrics need the collector
+      # running on the host. Acceptable for a local demo.
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+      - /:/hostfs:ro
+    ports:
+      - "4317:4317"      # OTLP gRPC
+      - "4318:4318"      # OTLP HTTP
+      - "8889:8889"      # Prometheus exposition of app+host metrics (scraped by prometheus)
+      - "8888:8888"      # collector's own internal telemetry (otelcol_* series)
+    restart: unless-stopped
+
+  # ---- Prometheus: scrapes the collector (+ self + app /metrics fallback). ----
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:v3.1.0
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=6h"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"      # http://localhost:9090
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
+
+  # ---- Grafana: provisioned datasource + dashboards, anonymous admin for local. ----
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.4.0
+    environment:
+      # Local-only convenience: anonymous access as Admin. NEVER do this in prod.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"      # http://localhost:3000
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ---- Jaeger — distributed-tracing / APM backend + UI ----
+  # The collector's traces pipeline exports OTLP to jaeger:4317; UI on :16686.
+  jaeger:
+    profiles: ["observability"]
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"   # accept OTLP directly from the collector
+    ports:
+      - "16686:16686"   # http://localhost:16686  (Jaeger UI + query API)
+    restart: unless-stopped
+
+  # ============================================================================
+  # EDGE — nginx reverse proxy / API gateway + LB. Opt-in:
+  #   dc --profile edge up -d
+  # Fronts pesacore-web: TLS termination, security headers (HSTS/CSP/...),
+  # rate limiting, compression, cache-control, and an upstream that
+  # load-balances `--scale pesacore-web=N` replicas. Local stand-in for Cloud
+  # Run's edge / an on-prem reverse proxy — NOT a prod artifact. See docs/edge_nginx.md.
+  # ============================================================================
+  nginx:
+    profiles: ["edge"]
+    image: nginx:1.27-alpine        # stock image: gzip yes, brotli no (see nginx.conf)
+    ports:
+      - "8443:443"     # https://localhost:8443  (self-signed — accept the warning)
+      - "8081:80"      # http://localhost:8081  -> 301 to https
+    volumes:
+      - ./edge/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./edge/conf.d:/etc/nginx/conf.d:ro
+      - ./edge/certs:/etc/nginx/certs:ro   # localhost.crt / localhost.key (generate first)
+    depends_on:
+      pesacore-web:
+        condition: service_healthy
+    restart: unless-stopped

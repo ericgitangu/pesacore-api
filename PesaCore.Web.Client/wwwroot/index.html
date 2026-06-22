@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PesaCore — Core Banking Console</title>
+    <meta name="description" content="PesaCore core-banking operations console: accounts, balances, and idempotent fund transfers." />
+    <meta name="theme-color" content="#0a0e0f" />
+    <base href="/" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="PesaCore.Web.Client.styles.css" rel="stylesheet" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <!-- Branded boot screen — covers the WASM first-paint gap. Removed once Blazor mounts. -->
+    <div id="app">
+        <div class="boot">
+            <div class="boot__mark" aria-hidden="true">
+                <span class="boot__glyph">₽</span>
+            </div>
+            <div class="boot__wordmark">PesaCore</div>
+            <div class="boot__tag">Core Banking Console</div>
+            <div class="boot__bar"><span class="boot__bar-fill"></span></div>
+            <div class="boot__status">Initializing runtime…</div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        <span class="be-msg">A runtime error occurred.</span>
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss" role="button" aria-label="Dismiss">✕</span>
+    </div>
+
+    <!-- Boot script. The `#[.{fingerprint}]` placeholder is resolved to the real
+         hashed filename by OverrideHtmlAssetPlaceholders during the CLIENT's standalone
+         publish (Dockerfile.web overlays that resolved wwwroot). Import maps do NOT
+         remap a classic <script src>, so this placeholder — not the canonical name —
+         is what must ship. See docs/issues_caught_and_resolved.md (#1). -->
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+</body>
+
+</html>

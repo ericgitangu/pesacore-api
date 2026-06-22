@@ -1,0 +1,11 @@
+# Namespace — a soft tenancy boundary. Everything below lives in `pesacore`,
+# so a single `kubectl delete ns pesacore` tears the whole demo down cleanly
+# and RBAC/quotas can be scoped here later. This is the LOCAL demo tier
+# (k3d/kind), NOT the prod path — prod is Cloud Run (see docs/local_k8s_cluster.md).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pesacore
+  labels:
+    app.kubernetes.io/part-of: pesacore
+    tier: local-demo

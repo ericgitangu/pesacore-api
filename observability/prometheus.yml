@@ -1,0 +1,32 @@
+# Prometheus scrape config. Prometheus is the pull-side store; it scrapes the
+# collector's re-exposition endpoint (the serverless-safe path) and — as a dev
+# convenience only — the app's direct /metrics fallback.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # PRIMARY: the OTel Collector's Prometheus exposition (app OTLP + hostmetrics).
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8889"]
+
+  # The collector's OWN internal telemetry (otelcol_* receiver/exporter/queue series).
+  # Feeds the "OTel Collector — Health" dashboard.
+  - job_name: otel-collector-internal
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # Prometheus scraping itself — baseline health/up series.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # FALLBACK (dev only): scrape PesaCore's native /metrics directly.
+  # In prod (Cloud Run scale-to-zero) this target would be unreachable when scaled
+  # to 0 — which is precisely why the collector/OTLP push path is primary.
+  - job_name: pesacore
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["pesacore:8080"]

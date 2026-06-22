@@ -1,0 +1,16 @@
+# Grafana dashboard provisioning — file provider. Grafana watches the folder below
+# and loads any *.json dashboards it finds (the dashboards are mounted there in compose).
+apiVersion: 1
+
+providers:
+  - name: PesaCore
+    orgId: 1
+    folder: PesaCore
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

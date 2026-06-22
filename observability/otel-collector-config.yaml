@@ -1,0 +1,84 @@
+# OpenTelemetry Collector (contrib) config — the observability hub.
+#
+# Topology:  PesaCore --OTLP push--> [this collector] --Prometheus exposition--> Prometheus --> Grafana
+#                                          ^ also scrapes the host via hostmetrics
+#
+# Why a collector (not direct Prometheus scrape of the app)? The prod target is
+# Cloud Run scale-to-zero — a pull/scrape model cannot reach an instance that is
+# scaled to 0. Push (OTLP) -> collector -> remote-write is the serverless-safe shape,
+# and keeps local + prod on ONE topology. The app's /metrics endpoint is a dev-only fallback.
+
+receivers:
+  # App telemetry arrives here over OTLP (PesaCore's AddOtlpExporter -> :4317).
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Infra metrics. NOTE: in a container on Docker-Desktop/Mac
+  # this reflects the Docker VM, not the bare host. The /proc, /sys, / mounts in
+  # docker-compose.yml are what these scrapers read.
+  hostmetrics:
+    collection_interval: 15s
+    root_path: /hostfs
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      network:
+      filesystem:
+      load:
+
+processors:
+  # Batch before export — fewer, larger writes. Standard first-line processor.
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  # Attach host.name / os.type / container resource attributes to every signal.
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 5s
+    override: false
+
+exporters:
+  # Re-expose received + host metrics in Prometheus text format on :8889/metrics.
+  # Prometheus scrapes THIS endpoint (see prometheus.yml job "otel-collector").
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true   # surface resource attributes (service_name, etc.) as labels
+  # Console/debug exporter — confirms the collector is actually receiving data.
+  debug:
+    verbosity: normal
+  # Traces -> Jaeger (the APM backend + UI) over OTLP. Tier A.
+  # Jaeger all-in-one accepts OTLP directly (COLLECTOR_OTLP_ENABLED).
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [resourcedetection, batch]
+      exporters: [prometheus, debug]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]   # Jaeger = APM backend; debug confirms receipt
+  telemetry:
+    logs:
+      level: info
+    # Expose the collector's OWN internal metrics (otelcol_*) in Prometheus format
+    # on :8888 so the "OTel Collector — Health" dashboard has data to query.
+    # Prometheus scrapes this via the otel-collector-internal job (prometheus.yml).
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
