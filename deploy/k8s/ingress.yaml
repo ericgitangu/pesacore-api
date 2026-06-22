@@ -1,0 +1,33 @@
+# Ingress — the cluster's single HTTP front door, implemented by the ingress-nginx
+# controller (installed by cluster-up.sh). Where a Service is L4 (TCP) and only
+# in-cluster, an Ingress is L7 (HTTP host/path routing) and is what the laptop
+# browser actually reaches.
+#
+# Routing: everything under `/` -> the pesacore-web Service :8080. The web/BFF
+# itself proxies /api/* onward to the API Service in-cluster, so the API is never
+# exposed directly (same shape as the compose BFF and the Cloud Run topology).
+#
+# This is the LOCAL stand-in for Cloud Run's managed edge. In prod there is no
+# ingress-nginx — the edge is Cloud Run / a managed LB (see docs/local_k8s_cluster.md).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pesacore
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/part-of: pesacore
+  annotations:
+    # k3d/kind both ship ingress-nginx as the controller used here.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"  # local demo = plain HTTP
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pesacore-web
+                port:
+                  number: 8080

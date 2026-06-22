@@ -1,0 +1,132 @@
+.head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 2rem; margin-bottom: 2.25rem; flex-wrap: wrap;
+}
+.head__title { font-size: clamp(2.4rem, 5vw, 3.4rem); margin: 0.35rem 0 0.5rem; }
+.head__sub { margin: 0; color: var(--ink-dim); max-width: 46ch; font-size: 0.95rem; }
+.head__actions { display: flex; align-items: center; gap: 1.4rem; }
+.head__stat { text-align: right; }
+.head__stat-label { display: block; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); }
+.head__stat-value { font-size: 1.45rem; color: var(--mint); }
+
+/* solid CTA — matches the Transfer/CreateAccount primary button */
+.btn--solid {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    padding: 0.7rem 1.2rem; border-radius: var(--r-sm); border: none;
+    color: var(--slate-950);
+    background: linear-gradient(180deg, #6cf0c4, var(--mint));
+    box-shadow: 0 14px 34px -14px var(--mint-glow);
+    transition: transform 0.18s var(--ease), filter 0.18s var(--ease);
+}
+.btn--solid:hover { transform: translateY(-2px); filter: brightness(1.06); }
+
+/* ---- empty state ---- */
+.empty {
+    display: grid; place-items: center; text-align: center; gap: 0.5rem;
+    padding: 4rem 1.5rem;
+    border-radius: var(--r-lg);
+    border: 1px dashed var(--hairline-strong);
+    background: var(--slate-850);
+}
+.empty__glyph { font-family: var(--display); font-size: 3rem; color: var(--ink-faint); }
+.empty__title { font-family: var(--display); font-size: 1.6rem; margin: 0; }
+.empty__sub { margin: 0 0 1rem; color: var(--ink-dim); max-width: 40ch; font-size: 0.92rem; }
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.1rem;
+}
+
+/* ---- account card ---- */
+.card {
+    position: relative;
+    text-align: left;
+    appearance: none; cursor: pointer;
+    font: inherit; color: inherit;
+    padding: 1.4rem 1.5rem 1.2rem;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--hairline);
+    background:
+        radial-gradient(120% 120% at 100% 0%, rgba(79,224,176,0.06), transparent 45%),
+        linear-gradient(165deg, var(--slate-800), var(--slate-850));
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: transform 0.28s var(--ease), border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+}
+.card::after {
+    content: ""; position: absolute; inset: 0;
+    border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 30%);
+}
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--hairline-strong);
+    box-shadow: var(--shadow), 0 30px 60px -40px var(--mint-glow);
+}
+
+.card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.4rem; }
+.card__holder { font-family: var(--display); font-size: 1.25rem; }
+.card__chip {
+    width: 34px; height: 24px; border-radius: 5px;
+    background: linear-gradient(135deg, var(--gold), #8a6a2f);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
+    position: relative;
+}
+.card__chip::before { content: ""; position: absolute; inset: 5px; border: 1px solid rgba(0,0,0,0.3); border-radius: 2px; }
+
+.card__num { font-size: 0.92rem; letter-spacing: 0.12em; color: var(--ink-dim); margin-bottom: 1.1rem; }
+
+.card__balance { display: flex; align-items: baseline; gap: 0.3rem; }
+.card__cur { font-family: var(--mono); font-size: 0.78rem; color: var(--ink-faint); letter-spacing: 0.08em; }
+.card__whole { font-size: 2rem; font-weight: 500; }
+.card__cents { font-size: 1rem; color: var(--ink-dim); }
+
+.card__foot {
+    margin-top: 1.25rem; padding-top: 1rem;
+    border-top: 1px solid var(--hairline);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.82rem; color: var(--ink-dim);
+}
+.card__tx { color: var(--ink); }
+.card__go { color: var(--mint); transition: transform 0.28s var(--ease); }
+.card:hover .card__go { transform: translateX(5px); }
+
+/* ---- skeleton ---- */
+.skel {
+    height: 210px; border-radius: var(--r-lg);
+    border: 1px solid var(--hairline);
+    background: linear-gradient(100deg, var(--slate-850) 30%, var(--slate-800) 50%, var(--slate-850) 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ---- entrance (orchestrated, staggered via inline delay) ---- */
+.enter { opacity: 0; transform: translateY(14px); animation: rise 0.6s var(--ease) forwards; }
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+/* ---- banner (shared error/empty) ---- */
+.banner {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1.1rem 1.3rem; border-radius: var(--r-md);
+    border: 1px solid var(--hairline); background: var(--slate-850);
+    color: var(--ink-dim);
+}
+.banner p { margin: 0.2rem 0 0; font-size: 0.85rem; }
+.banner--err { border-color: rgba(255,107,107,0.35); background: var(--danger-bg); color: var(--ink); }
+.banner__icon {
+    display: grid; place-items: center; flex: none;
+    width: 28px; height: 28px; border-radius: 99px;
+    background: var(--danger); color: var(--slate-950); font-weight: 700;
+}
+.banner .btn { margin-left: auto; }
+.btn--ghost {
+    appearance: none; cursor: pointer; font: inherit;
+    padding: 0.45rem 0.9rem; border-radius: var(--r-sm);
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--hairline-strong);
+    transition: background 0.18s var(--ease);
+}
+.btn--ghost:hover { background: rgba(255,255,255,0.05); }

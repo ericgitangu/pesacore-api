@@ -1,0 +1,19 @@
+# Cloud Build — builds both PesaCore images natively for linux/amd64 (Cloud Run's
+# only arch) and pushes to Artifact Registry. Avoids slow QEMU emulation that a
+# local arm64 (Apple Silicon) buildx would incur.
+#
+#   gcloud builds submit --config cloudbuild.yaml --project noobea .
+substitutions:
+  _AR: africa-south1-docker.pkg.dev/noobea/pesacore
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-api
+    args: ['build', '-f', 'Dockerfile',     '-t', '${_AR}/api:latest', '.']
+  - name: gcr.io/cloud-builders/docker
+    id: build-web
+    args: ['build', '-f', 'Dockerfile.web', '-t', '${_AR}/web:latest', '.']
+images:
+  - '${_AR}/api:latest'
+  - '${_AR}/web:latest'
+options:
+  logging: CLOUD_LOGGING_ONLY

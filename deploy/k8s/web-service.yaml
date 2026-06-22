@@ -1,0 +1,18 @@
+# pesacore-web Service — ClusterIP fronting the web/BFF pods. The Ingress targets
+# THIS Service (not the pods directly); it then load-balances to ready web pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pesacore-web
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/name: pesacore-web
+    app.kubernetes.io/part-of: pesacore
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pesacore-web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

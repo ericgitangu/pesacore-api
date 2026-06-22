@@ -1,0 +1,31 @@
+{
+   "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
+   "tasks": [
+      {
+         "name": "format-staged",
+         "group": "pre-commit",
+         "pathMode": "staged",
+         "command": "dotnet",
+         "args": [ "format", "PesaCore.slnx", "--include", "${staged}", "--verify-no-changes" ],
+         "include": [ "**/*.cs" ]
+      },
+      {
+         "name": "gitleaks-staged",
+         "group": "pre-commit",
+         "command": "gitleaks",
+         "args": [ "protect", "--staged", "--redact", "--no-banner" ]
+      },
+      {
+         "name": "build",
+         "group": "pre-push",
+         "command": "dotnet",
+         "args": [ "build", "PesaCore.slnx", "-c", "Release", "--nologo" ]
+      },
+      {
+         "name": "test",
+         "group": "pre-push",
+         "command": "dotnet",
+         "args": [ "test", "PesaCore.slnx", "-c", "Release", "--no-build", "--nologo" ]
+      }
+   ]
+}

@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>8b0625ad-e43a-4f17-9b14-f7524744ad8f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="Dapper" Version="2.1.72" />
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="MediatR" Version="14.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.7" />
+    <!-- Neon Postgres — selected at runtime when ConnectionStrings:Postgres
+         is set; SQLite stays the local-dev fallback so `make run` needs no creds.
+         Npgsql.EFCore 10.x tracks the EF Core 10 (net10.0) line above. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <!-- Upstash Redis — IDistributedCache backend for distributed
+         idempotency + cache-aside; falls back to AddDistributedMemoryCache when
+         ConnectionStrings:Redis is unset. Ships on the net10.0 shared-framework line. -->
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
+    <PackageReference Include="Polly" Version="8.6.6" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.16.4" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+
+    <!-- OpenTelemetry — distributed tracing + metrics. See the platform paved-road standards.
+         Pinned to 1.15.x — earlier 1.13.x has moderate-severity advisories
+         (GHSA-g94r-2vxg-569j, GHSA-4625-4j76-fww9) fixed in 1.14+. -->
+    <PackageReference Include="OpenTelemetry" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.12.0-beta.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.15.0-beta.1" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.16.0" />
+    <!-- Prometheus scrape endpoint (/metrics) — local-dev / direct-scrape fallback only.
+         OTLP push to the collector remains the PRIMARY path.
+         Beta-train package (lockstep with the EF Core instrumentation beta above). -->
+    <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.12.0-beta.1" />
+  </ItemGroup>
+
+</Project>

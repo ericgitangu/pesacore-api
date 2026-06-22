@@ -1,0 +1,23 @@
+# pesacore-api Service — stable in-cluster DNS + L4 load balancer over the API pods.
+#
+# ClusterIP (the default) = reachable only inside the cluster, at a virtual IP and
+# the DNS name `pesacore-api.pesacore.svc.cluster.local` (short: `pesacore-api`
+# within the namespace). kube-proxy round-robins connections across whichever pods
+# currently pass readiness — pod IPs churn on restart/scale, the Service name does not.
+# This is the name the web/BFF dials via PesaCore__BaseUrl (see web-deployment.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: pesacore-api
+  namespace: pesacore
+  labels:
+    app.kubernetes.io/name: pesacore-api
+    app.kubernetes.io/part-of: pesacore
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pesacore-api   # routes to pods with this label
+  ports:
+    - name: http
+      port: 8080          # the Service port (what callers dial)
+      targetPort: http    # the container port (named 'http' = 8080)

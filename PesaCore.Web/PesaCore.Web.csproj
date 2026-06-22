@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <!-- Server-side support for hosting a Blazor WebAssembly client:
+         brings UseBlazorFrameworkFiles() + the build-time copy of the
+         published WASM payload into this host's wwwroot. -->
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The BFF host publishes the WASM client's static assets into its own
+         wwwroot. ProjectReference here makes `dotnet publish PesaCore.Web`
+         produce a single self-contained image (host + client). -->
+    <ProjectReference Include="..\PesaCore.Web.Client\PesaCore.Web.Client.csproj" />
+  </ItemGroup>
+
+</Project>

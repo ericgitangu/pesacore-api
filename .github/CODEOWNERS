@@ -1,0 +1,11 @@
+# PesaCore — Code Owners
+*                                          @ericgitangu
+/.github/                                  @ericgitangu
+/infra/                                    @ericgitangu
+/edge/                                     @ericgitangu
+/deploy/                                   @ericgitangu
+/PesaCore/Properties/PublishProfiles/      @ericgitangu
+/PesaCore/web.config                       @ericgitangu
+/PesaCore/appsettings.Production.json      @ericgitangu
+/PesaCore/appsettings.IIS.json             @ericgitangu
+/PesaCore/Program.cs                       @ericgitangu

@@ -1,0 +1,3 @@
+# Self-signed localhost cert lands here (localhost.crt / localhost.key).
+# Generated locally via the openssl one-liner in docs/edge_nginx.md — NOT committed.
+# This .gitkeep just keeps the mount path present in the repo.
