@@ -22,7 +22,7 @@
     <!-- Upstash Redis — IDistributedCache backend for distributed
          idempotency + cache-aside; falls back to AddDistributedMemoryCache when
          ConnectionStrings:Redis is unset. Ships on the net10.0 shared-framework line. -->
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.9" />
     <PackageReference Include="Polly" Version="8.6.6" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.16.4" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
